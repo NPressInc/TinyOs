@@ -1,0 +1,20 @@
+# GrapheneOS build directory (contains synced source code - too large for git)
+graphene_3a/
+
+# Image files (ROM images, recovery images, etc.)
+imgs/
+*.img
+*.zip
+
+# Build output
+out/
+
+# Temporary files
+*.tmp
+*.bak
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
