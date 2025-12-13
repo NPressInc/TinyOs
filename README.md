@@ -4,7 +4,7 @@ This repository contains tools and documentation for building a custom GrapheneO
 
 ## Quick Start
 
-1. **Download GrapheneOS source manifest** from [GrapheneOS Releases](https://grapheneos.org/releases#tegu)
+1. **Download GrapheneOS source manifest** from [GrapheneOS Releases](https://grapheneos.org/releases)
 2. **Follow `BUILD_AND_INSTALL.md`** for complete build and installation instructions
 3. **Customize** network restrictions and apps as needed
 
@@ -48,5 +48,5 @@ This repository contains tools and documentation for building a custom GrapheneO
 ## Resources
 
 - [GrapheneOS Build Documentation](https://grapheneos.org/releases#tegu)
-- [GrapheneOS Source](https://github.com/GrapheneOS)
+- [GrapheneOS Source for Phones](https://grapheneos.org/releases)
 
