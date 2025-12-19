@@ -102,10 +102,11 @@ If you still have stock Android or another ROM:
 
 For complete build and installation instructions, see `BUILD_AND_INSTALL.md`. The process includes:
 
-1. **Sync source code** using the manifest file in the `graphene_3a` directory
-2. **Apply customizations** (network restrictions, apps, branding)
-3. **Build the ROM** (takes several hours) - builds in the `graphene_3a` directory
-4. **Flash to device** using fastboot
+1. **Sync source code** using the manifest file in the `graphene_3a` directory (Note: requires manual removal of dead projects like `Vanadium` and `EmergencyInfo` from `default.xml` before sync).
+2. **Integrate vendor blobs** using `android-prepare-vendor` (must move blobs to `vendor/google_devices/sargo` path).
+3. **Apply customizations** (network restrictions, apps, pulsing boot branding).
+4. **Build the ROM** (takes several hours) - builds in the `graphene_build` directory.
+5. **Flash to device** using `fastboot flashall -w`.
 
 The build process will create factory images that you can flash to your device.
 

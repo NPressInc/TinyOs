@@ -1,52 +1,43 @@
 # Tiny Web - Custom GrapheneOS Build
 
-This repository contains tools and documentation for building a custom GrapheneOS ROM with network restrictions and pre-installed Tiny Web app for family communication devices.
+This repository contains tools and documentation for building a custom GrapheneOS ROM for the Pixel 3a (sargo) with network restrictions and custom branding.
 
 ## Quick Start
 
-1. **Download GrapheneOS source manifest** from [GrapheneOS Releases](https://grapheneos.org/releases)
-2. **Follow `BUILD_AND_INSTALL.md`** for complete build and installation instructions
-3. **Customize** network restrictions and apps as needed
+1. **Setup Manifest**: Initialize the `graphene_3a` folder as a git repo and fix missing legacy links in `default.xml`.
+2. **Sync Source**: Use `repo init` and `repo sync` in a separate `graphene_build` directory.
+3. **Extract Vendor Blobs**: Use `android-prepare-vendor` to pull proprietary drivers from the stock Google factory image.
+4. **Build**: Run `m -j$(nproc)` in the build environment.
+5. **Flash**: Use `fastboot flashall -w` to install your custom OS.
+
+Detailed instructions are in [BUILD_AND_INSTALL.md](./BUILD_AND_INSTALL.md).
 
 ## Project Structure
 
-- `BUILD_AND_INSTALL.md` - Complete guide for building and installing from source
-- `MODIFICATIONS.md` - How to add network restrictions
-- `ADDING_APPS.md` - How to pre-install your Tiny Web app
-- `restrict_network.sh` - Network restriction script (iptables rules)
-- `add_apps.sh` - Helper script to add APKs to build
-- `apply_modifications.sh` - Helper script to apply network restrictions
+- `BUILD_AND_INSTALL.md` - **Start here**. Complete guide for the build process.
+- `MODIFICATIONS.md` - How to add network restrictions (iptables).
+- `ADDING_APPS.md` - How to pre-install your Tiny Web app.
+- `imgs/` - Backup of verified, bootable images and custom boot animation.
+- `icons/` - Source SVG files for branding and boot animations.
 
 ## Key Features
 
-- **Network Restrictions**: Block all internet except Tiny Web nodes (via iptables)
-- **Pre-installed Apps**: Tiny Web app included in system image
-- **Minimal OS**: Based on GrapheneOS (very minimal, privacy-focused)
-- **Custom Branding**: Customize boot logo, system name, etc.
+- **Network Restrictions**: Block all internet except Tiny Web nodes via iptables.
+- **Pulsing Boot Animation**: Custom SVG-based "breathing" logo during boot.
+- **Verified Boot**: Built with integrated vendor blobs for a secure, bootable experience.
 
-## Requirements
+## Build Requirements
 
-- Linux build environment (Ubuntu/Debian recommended)
-- 500GB+ disk space
-- 32GB+ RAM (64GB ideal)
-- 6-10 hours for first build
+- **Disk**: 500GB+ SSD
+- **RAM**: 32GB+
+- **OS**: Ubuntu 22.04 or 24.04
+- **Time**: ~1 hour for subsequent builds; ~6 hours for first sync/build.
 
-## Workflow
+## Workflow Summary
 
-1. Sync GrapheneOS source code
-2. Apply network restrictions (`MODIFICATIONS.md`)
-3. Add Tiny Web app (`ADDING_APPS.md`)
-4. Build ROM (`BUILD_AND_INSTALL.md`)
-5. Flash to device
-
-## Documentation
-
-- **`BUILD_AND_INSTALL.md`** - Start here for complete build process
-- **`INSTALL_OFFICIAL.md`** - General information about legacy devices
-- **`NEXT_STEPS.md`** - Additional build details
-
-## Resources
-
-- [GrapheneOS Build Documentation](https://grapheneos.org/releases#tegu)
-- [GrapheneOS Source for Phones](https://grapheneos.org/releases)
-
+1. **Modify Manifest**: Remove dead projects (`Vanadium`, `EmergencyInfo`).
+2. **Sync**: `repo sync`.
+3. **Patch**: Fix test lists in `platform_testing`.
+4. **Vendor**: Extract and move blobs to `vendor/google_devices/sargo`.
+5. **Branding**: Update `device/google/bonito/media/bootanimation.zip`.
+6. **Build & Flash**: `m` and `fastboot flashall`.

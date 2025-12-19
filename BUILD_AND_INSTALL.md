@@ -6,9 +6,9 @@ Complete guide for building GrapheneOS from source for legacy devices with custo
 
 This guide covers:
 - Setting up the build environment
-- Syncing GrapheneOS source code
-- Adding network restrictions
-- Pre-installing your Tiny Web app
+- Syncing GrapheneOS source code (with fixes for legacy repos)
+- Integrating proprietary vendor blobs
+- Adding network restrictions and custom boot animations
 - Building the ROM
 - Flashing to device
 
@@ -16,11 +16,11 @@ This guide covers:
 
 ### System Requirements
 
-- **OS**: Linux (Ubuntu/Debian recommended)
+- **OS**: Linux (Ubuntu 22.04/24.04 recommended)
 - **Disk Space**: 500GB+ free space
 - **RAM**: 32GB+ recommended (64GB ideal)
 - **CPU**: Multi-core processor (8+ cores recommended)
-- **Time**: Initial sync ~1-2 hours, build ~3-6 hours
+- **Time**: Initial sync ~1-2 hours, build ~1-4 hours
 
 ### Install Build Tools
 
@@ -29,15 +29,8 @@ sudo apt update && sudo apt install -y \
     bc curl default-jdk-headless default-jre-headless git git-lfs \
     libncurses-dev libssl-dev lz4 m4 python3-lxml \
     python3-protobuf python3-yaml python-is-python3 rsync zip \
-    protobuf-compiler adb fastboot
+    protobuf-compiler adb fastboot inkscape imagemagick libarchive-tools
 ```
-
-**Note**: Package names may vary by Ubuntu/Debian version:
-- `libncurses5-dev` → `libncurses-dev` (newer versions)
-- `android-tools-adb` → `adb` (newer versions)
-- `android-tools-fastboot` → `fastboot` (newer versions)
-
-If you get package errors, try installing individually or check your distribution's package names.
 
 ### Install Repo Tool
 
@@ -48,312 +41,107 @@ curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
 chmod +x ~/bin/repo
 ```
 
-### System Configuration
-
-```bash
-sudo sysctl -w kernel.unprivileged_userns_clone=1
-```
-
 ## Phase 1: Download Source Code
 
-### Step 1: Create Build Directory
+### Step 1: Initialize Manifest Repository
+
+The manifest folder (`graphene_3a`) must be a git repository for `repo` to work.
 
 ```bash
-# Navigate to your project directory
 cd /home/william/Documents/projects/foxPhone/graphene_3a
-```
-
-The build will happen in the `graphene_3a` directory, alongside the manifest folder.
-
-### Step 2: Initialize Manifest as Git Repository
-
-⚠️ **Important**: The manifest folder must be a git repository for `repo` to work. If it's not already, initialize it:
-
-```bash
-# Navigate to manifest folder
-cd /home/william/Documents/projects/foxPhone/graphene_3a/platform_manifest-SP2A.220505.006.2022081800
-
-# Initialize as git repository (if not already done)
 git init
-git config user.email "build@local"
-git config user.name "Build User"
 git add default.xml GLOBAL-PREUPLOAD.cfg
-git commit -m "Initial manifest commit"
-
-# Go back to build directory
-cd /home/william/Documents/projects/foxPhone/graphene_3a
+git commit -m "Initial manifest"
 ```
 
-### Step 3: Initialize Repo with Manifest
+### Step 2: Fix Legacy Repositories (CRITICAL)
 
-⚠️ **Important**: Run this command from your build directory (`graphene_3a`), not from inside the manifest folder!
+GrapheneOS has removed some legacy repositories (Vanadium, EmergencyInfo) from their servers. You must remove them from `default.xml` before syncing:
+
+1. Open `graphene_3a/default.xml`.
+2. Delete the lines for `platform_external_vanadium` and `platform_packages_apps_EmergencyInfo`.
+3. Commit the change:
+   ```bash
+   git add default.xml
+   git commit -m "Remove missing legacy repositories"
+   ```
+
+### Step 3: Initialize and Sync
+
+Create a separate build directory for the actual source code.
 
 ```bash
-# Make sure you're in the build directory
-cd /home/william/Documents/projects/foxPhone/graphene_3a
+cd /home/william/Documents/projects/foxPhone
+mkdir -p graphene_build
+cd graphene_build
 
-# Clean up any partial initialization (if needed)
-rm -rf .repo
+# Initialize repo using your local manifest
+repo init -u file:///home/william/Documents/projects/foxPhone/graphene_3a -m default.xml
 
-# Using local manifest folder - relative path (since manifest is in same directory)
-repo init -u file://$(pwd)/platform_manifest-SP2A.220505.006.2022081800
-
-# Or using absolute path:
-# repo init -u file:///home/william/Documents/projects/foxPhone/graphene_3a/platform_manifest-SP2A.220505.006.2022081800
-
-# Or using remote manifest (if available)
-# repo init -u https://github.com/GrapheneOS/platform_manifest -b SP2A.220505.006.2022081800
+# Start the sync
+repo sync -c -j$(nproc) --force-sync
 ```
 
-**Important Notes**:
-- Manifest folder must be a **git repository** (initialize it first if needed)
-- Must use `file://` protocol for local paths
-- Run from your **build directory** (`graphene_3a`), not from inside the manifest folder
-- Point to the **folder** containing `default.xml`, not the file itself
+## Phase 2: Patch the Build Tree
 
-### Step 4: Sync Source Code
+Because we removed projects in Phase 1, we must patch the build tree to avoid "module not found" errors.
 
-```bash
-repo sync -j8
-```
+### Step 1: Remove EmergencyInfo References
 
-This downloads ~100GB of source code. Takes 1-2 hours depending on connection speed.
-
-## Phase 2: Apply Customizations
-
-### Step 1: Add Network Restrictions
-
-Use the helper script or manual method:
-
-```bash
-# From your project directory
-./apply_modifications.sh ~/grapheneos
-```
-
-Or manually (see `MODIFICATIONS.md` for details):
-1. Copy `restrict_network.sh` to device tree
-2. Modify device makefile to include script
-3. Add init script trigger
-
-**Edit `restrict_network.sh`** to set your allowed IPs/domains:
-```bash
-ALLOWED_IPS="192.0.2.1 198.51.100.1"  # Your Tiny Web node IPs
-ALLOWED_DOMAINS=""  # Optional: domain names
-ALLOWED_PORTS="443 80"  # Optional: restrict to specific ports
-```
-
-### Step 2: Pre-install Your Tiny Web App
-
-Use the helper script:
-
-```bash
-# From your project directory
-./add_apps.sh ~/grapheneos system /path/to/tinyweb.apk
-```
-
-Or manually (see `ADDING_APPS.md` for details):
-1. Copy APK to device tree prebuilt directory
-2. Modify device makefile to include app
-3. Choose system app (cannot be uninstalled) or user app
-
-### Step 3: Custom Branding (Optional)
-
-Modify branding files in:
-- `vendor/branding/` - Boot logo, system name, etc.
-- Device-specific branding in device tree
+1. **Remove from test list**: Edit `platform_testing/build/tasks/tests/instrumentation_test_list.mk` and remove the line for `EmergencyInfoUnitTests`.
+2. **Remove from product list**: Edit `build/make/target/product/telephony_system_ext.mk` and remove the line for `EmergencyInfo`.
 
 ## Phase 3: Get Proprietary Files
 
-GrapheneOS needs proprietary vendor files. For legacy devices:
+### Step 1: Extract from Factory Image
+
+You need the stock Google factory image zip in your Downloads folder.
 
 ```bash
-# Extract from device (if you have one running stock Android)
-./vendor/android-prepare-vendor/execute-all.sh -d <device_codename> -b <build_number> -o vendor
-
-# Or use prebuilt proprietary files if available
-# Check GrapheneOS documentation for your specific device
+cd /home/william/Documents/projects/foxPhone/graphene_build
+./vendor/android-prepare-vendor/execute-all.sh -d sargo -b SP2A.220505.006 -i ~/Downloads/sargo-sp2a.220505.006-factory-978959e1.zip -o vendor
 ```
 
-**Device codenames**:
-- Pixel 3a: `sargo`
-- Pixel 3a XL: `bonito`
-- Pixel 3: `blueline`
-- Pixel 3 XL: `crosshatch`
+### Step 2: Move Blobs to Expected Path
 
-## Phase 4: Build
-
-### Step 1: Setup Build Environment
+Move the extracted files to the location GrapheneOS expects:
 
 ```bash
-cd /home/william/Documents/projects/foxPhone/graphene_3a
+mkdir -p vendor/google_devices
+cp -r vendor/sargo/sp2a.220505.006/vendor/google_devices/* vendor/google_devices/
+```
+
+## Phase 4: Apply Customizations
+
+### Step 1: Custom Pulsing Boot Animation
+
+To use a pulsing SVG logo:
+1. Create a `bootanimation.zip` containing a sequence of PNG frames (scaling from 0.8 to 1.0).
+2. Place it in `device/google/bonito/media/bootanimation.zip`.
+3. Add this line to `device/google/bonito/device-sargo.mk`:
+   ```makefile
+   PRODUCT_COPY_FILES += \
+       device/google/bonito/media/bootanimation.zip:$(TARGET_COPY_OUT_SYSTEM)/media/bootanimation.zip
+   ```
+
+## Phase 5: Build
+
+```bash
 source build/envsetup.sh
+lunch sargo-user
+m -j$(nproc)
 ```
 
-### Step 2: Select Device Target
+## Phase 6: Flash to Device
 
-```bash
-# For Pixel 3a XL (bonito) - shares code with sargo
-lunch bonito-user
-
-# Or for Pixel 3a (sargo) if available
-# lunch sargo-user
-```
-
-### Step 3: Build
-
-```bash
-# Full build (takes 3-6+ hours)
-m
-
-# Or parallel build (faster if you have many cores)
-mka
-```
-
-The build output will be in `out/target/product/<device>/`
-
-## Phase 5: Flash to Device
-
-### Step 1: Unlock Bootloader (if not already unlocked)
-
-⚠️ **WARNING**: This erases all data!
-
-1. Enable Developer Options on device
-2. Enable "OEM unlocking" and "USB debugging"
-3. Boot into bootloader:
+1. Boot device to bootloader (Power + Vol Down).
+2. Flash all images:
    ```bash
-   adb reboot bootloader
-   # Or: Power off, hold Volume Down + Power
+   cd out/target/product/sargo
+   fastboot flashall -w
    ```
-4. Unlock:
-   ```bash
-   fastboot flashing unlock
-   ```
-   - Confirm on device screen
-   - Wait for reboot
-
-### Step 2: Boot into Bootloader
-
-```bash
-fastboot reboot bootloader
-# Or: Power off, hold Volume Down + Power
-```
-
-### Step 3: Flash Built ROM
-
-From the build directory:
-
-```bash
-cd /home/william/Documents/projects/foxPhone/graphene_3a/out/target/product/bonito
-
-# Flash all partitions
-fastboot flash boot boot.img
-fastboot flash system system.img
-fastboot flash vendor vendor.img
-fastboot flash vbmeta vbmeta.img
-fastboot flash dtbo dtbo.img  # If available
-
-# Reboot
-fastboot reboot
-```
-
-### Step 4: First Boot
-
-- First boot takes 10-15 minutes
-- Your Tiny Web app should be pre-installed
-- Network restrictions are active at boot
-- Test connectivity to your Tiny Web nodes
-
-## Verification
-
-```bash
-# Check device connection
-adb devices
-
-# Check GrapheneOS version
-adb shell getprop ro.build.version.release
-adb shell getprop ro.grapheneos.version
-
-# Check network restrictions
-adb shell iptables -L OUTPUT -n -v
-
-# Check installed apps
-adb shell pm list packages | grep -i tinyweb
-```
 
 ## Troubleshooting
 
-### Build Fails
-
-- **Out of memory**: Increase swap space or reduce parallel jobs (`repo sync -j4`)
-- **Missing dependencies**: Install all prerequisites listed above
-- **Proprietary files missing**: Extract from device or find prebuilt files
-
-### Flash Fails
-
-- **Device not detected**: Check USB cable, try different port
-- **Wrong device**: Verify device codename matches your device
-- **Partition errors**: Try flashing partitions individually
-
-### Network Restrictions Not Working
-
-- **Check script location**: Verify `restrict_network.sh` is in `/vendor/bin/`
-- **Check init trigger**: Verify script is called in init file
-- **Check SELinux**: May need to add SELinux policies
-- **Check logs**: `adb shell dmesg | grep restrict_network`
-
-### App Not Installed
-
-- **Check makefile**: Verify app is in `PRODUCT_COPY_FILES` or `PRODUCT_PACKAGES`
-- **Check build output**: Look for app in `out/target/product/<device>/system/app/` or `/data/app/`
-- **Check installation**: `adb shell pm list packages | grep <app_name>`
-
-## Customization Tips
-
-### Make It More Minimal
-
-Edit device makefile to remove unwanted apps:
-```makefile
-# Remove apps from PRODUCT_PACKAGES
-```
-
-### Adjust Network Restrictions
-
-Edit `restrict_network.sh`:
-- Add/remove allowed IPs
-- Configure allowed ports
-- Enable/disable IPv6
-- Add DNS servers
-
-### Update Apps
-
-To update your Tiny Web app:
-1. Replace APK in prebuilt directory
-2. Rebuild ROM
-3. Flash updated system partition
-
-## Time Estimates
-
-- **Initial setup**: 30 minutes
-- **Source sync**: 1-2 hours
-- **Customizations**: 30 minutes - 2 hours
-- **Build**: 3-6 hours
-- **Flash**: 5-10 minutes
-- **First boot**: 10-15 minutes
-
-**Total**: ~6-10 hours for first build
-
-## Next Steps
-
-After successful installation:
-
-1. Test all functionality
-2. Verify network restrictions work
-3. Test Tiny Web app connectivity
-4. Customize further as needed
-5. Create backup of working build
-
-For detailed customization guides, see:
-- `MODIFICATIONS.md` - Network restrictions
-- `ADDING_APPS.md` - Adding apps
-- `NEXT_STEPS.md` - Additional build details
-
+- **Stuck on Google Logo**: Usually means a mismatch between `system.img` and `vendor.img`. Ensure you integrated vendor blobs in Phase 3.
+- **Bootloader Loop**: Check slot status: `fastboot getvar all`. Ensure `vbmeta` was flashed correctly.

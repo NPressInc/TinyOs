@@ -95,6 +95,30 @@ on property:sys.boot_completed=1
     exec u:r:kernel:s0 /vendor/bin/restrict_network.sh
 ```
 
+## Custom Pulsing Boot Animation
+
+You can replace the default GrapheneOS boot animation with a custom pulsing logo based on an SVG file.
+
+### Step 1: Generate the Animation
+Use a script to render your SVG at multiple scales and package them into a `bootanimation.zip`:
+
+1. Render SVG frames (e.g., scale 0.8 to 1.0).
+2. Create `desc.txt` with resolution (1080 2220 for Pixel 3a).
+3. Zip with **zero compression** (`zip -0r`).
+
+### Step 2: Integrate into Build
+1. Place `bootanimation.zip` in `device/google/bonito/media/`.
+2. Edit `device/google/bonito/device-sargo.mk` and add:
+   ```makefile
+   PRODUCT_COPY_FILES += \
+       device/google/bonito/media/bootanimation.zip:$(TARGET_COPY_OUT_SYSTEM)/media/bootanimation.zip
+   ```
+
+### Step 3: Rebuild
+```bash
+m systemimage
+```
+
 ## Testing
 
 After building and flashing:
