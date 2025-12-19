@@ -1,5 +1,6 @@
 # GrapheneOS build directory (contains synced source code - too large for git)
 graphene_3a/
+graphene_build/
 
 # Image files (ROM images, recovery images, etc.)
 imgs/
